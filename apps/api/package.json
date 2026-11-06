@@ -1,0 +1,57 @@
+{
+  "name": "@agrimatch/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgriMatch API: Express 5 + Drizzle ORM + Postgres (PGlite locally, Neon in production)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.15",
+    "@neondatabase/serverless": "^1.2.0",
+    "@upstash/redis": "^1.41.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.9",
+    "drizzle-orm": "^0.45.4",
+    "express": "^5.3.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.1",
+    "multer": "^2.5.0",
+    "sharp": "^0.35.5",
+    "socket.io": "^4.8.4",
+    "winston": "^3.19.0",
+    "ws": "^8.22.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^26.6.6",
+    "@types/supertest": "^7.2.1",
+    "@types/ws": "^8.18.2",
+    "drizzle-kit": "^0.31.11",
+    "socket.io-client": "^4.8.4",
+    "supertest": "^7.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}
