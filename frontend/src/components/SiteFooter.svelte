@@ -1,6 +1,6 @@
 <script>
   import { Link } from 'svelte-navigator';
-  import { Wheat } from 'lucide-svelte';
+  import Brand from './Brand.svelte';
 
   const year = new Date().getFullYear();
 </script>
@@ -8,10 +8,7 @@
 <footer class="footer">
   <div class="container grid">
     <div class="about">
-      <span class="brand">
-        <span class="brand-mark"><Wheat size={18} strokeWidth={2} aria-hidden="true" /></span>
-        <span class="brand-name">AgriMatch</span>
-      </span>
+      <Brand size="sm" />
       <p>Agricultural produce market information and matching system.</p>
     </div>
 
@@ -49,26 +46,6 @@
     display: grid;
     gap: var(--space-8);
     grid-template-columns: 1fr;
-  }
-
-  .brand {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .brand-mark {
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
-    background: var(--color-orange-600);
-  }
-
-  .brand-name {
-    font-size: var(--text-lg);
-    font-weight: 700;
   }
 
   .about p {

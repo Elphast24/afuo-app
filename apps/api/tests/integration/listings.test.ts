@@ -139,6 +139,22 @@ describe('GET /listings (browse)', () => {
     expect(organic).toEqual(['Maize', 'Okra']);
   });
 
+  it('sorts by price and pages through the sorted list without repeats', async () => {
+    const prices = (qs: string) => list(qs).then((r) => r.body.data.items.map((i: any) => i.pricePerUnit));
+    const asc = await prices('?sort=price_asc&limit=100');
+    expect(asc).toEqual([...asc].sort((a, b) => a - b));
+    expect(asc[0]).toBe(4);
+    const desc = await prices('?sort=price_desc&limit=100');
+    expect(desc).toEqual([...desc].sort((a, b) => b - a));
+    expect(desc[0]).toBe(450);
+
+    const ids = async (page: number) =>
+      (await list(`?sort=price_desc&limit=3&page=${page}`)).body.data.items.map((i: any) => i.id);
+    const [p1, p2] = [await ids(1), await ids(2)];
+    expect(new Set([...p1, ...p2]).size).toBe(p1.length + p2.length);
+    await api().get('/v1/listings?sort=cheapest').set(bearer(buyer)).expect(422);
+  });
+
   it('treats % and _ in search text literally', async () => {
     expect((await list('?produce=%25')).body.data.items).toHaveLength(0);
   });

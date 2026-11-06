@@ -152,6 +152,20 @@ describe('analytics', () => {
     expect(data.recentListings[0]).toHaveProperty('farmerName');
   });
 
+  it('GET /analytics/insights gives activity, a price map, the balance and insights', async () => {
+    const { data } = (await get('/insights')).body;
+    expect(data.currency).toBe('GHS');
+    // Onions, Maize and the Cassava from the matching tests are new; both Tomatoes were backdated above
+    expect(data.pulse).toMatchObject({ newToday: 3, newYesterday: 0, newThisWeek: 3, newLastWeek: 0, weekChangePct: null });
+    expect(data.matrix.towns).toEqual(expect.arrayContaining(['Accra', 'Tamale']));
+    const row = data.matrix.rows.find((r: any) => r.produce === 'Tomatoes');
+    expect(row.cells).toHaveLength(data.matrix.towns.length);
+    expect(data.balance).toMatchObject({ total: 4 });
+    expect(Array.isArray(data.insights)).toBe(true);
+    for (const i of data.insights) expect(i).toMatchObject({ id: expect.any(String), kind: expect.any(String), tone: expect.stringMatching(/^(good|watch|info)$/), title: expect.any(String), detail: expect.any(String) });
+    await api().get('/v1/analytics/insights').expect(401);
+  });
+
   it('GET /analytics/prices', async () => {
     const { prices } = (await get('/prices')).body.data;
     const maize = prices.find((p: any) => p.produce === 'Maize');

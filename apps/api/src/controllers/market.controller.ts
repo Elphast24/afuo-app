@@ -25,6 +25,10 @@ export const analyticsController = {
     res.json({ success: true, data: await analyticsService.getPriceHistory(req.params.produce, months) });
   },
 
+  async insights(_req: Request, res: Response) {
+    res.json({ success: true, data: await analyticsService.getInsights() });
+  },
+
   async locations(_req: Request, res: Response) {
     res.json({ success: true, data: { locations: await analyticsService.getListingsByLocation() } });
   },

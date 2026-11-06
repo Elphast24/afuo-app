@@ -1,6 +1,7 @@
 <script>
   import { Link } from 'svelte-navigator';
-  import { Wheat, UserRound } from 'lucide-svelte';
+  import { UserRound } from 'lucide-svelte';
+  import Brand from './Brand.svelte';
   import { session } from '../lib/auth.js';
   import { unreadTotal } from '../lib/socket.js';
 
@@ -32,8 +33,7 @@
 <header class="site-header">
   <div class="bar">
     <Link to="/" class="brand" aria-label="AgriMatch home">
-      <span class="brand-mark"><Wheat size={20} strokeWidth={2} aria-hidden="true" /></span>
-      <span class="brand-name">AgriMatch</span>
+      <Brand />
     </Link>
 
     {#if items.length}
@@ -89,22 +89,6 @@
     align-items: center;
     gap: var(--space-2);
     min-height: 44px;
-  }
-
-  .brand-mark {
-    display: grid;
-    place-items: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: var(--color-orange-600);
-    color: #fff;
-  }
-
-  .brand-name {
-    font-size: var(--text-lg);
-    font-weight: 700;
-    letter-spacing: -0.01em;
   }
 
   /* Nav drops to its own scrollable row on phones */

@@ -149,7 +149,8 @@ export const api = {
     summary: () => get('/analytics/summary'),
     prices: () => get('/analytics/prices'),
     priceHistory: (produce, months = 6) => get(`/analytics/prices/${encodeURIComponent(produce)}`, { months }),
-    locations: () => get('/analytics/locations')
+    locations: () => get('/analytics/locations'),
+    insights: () => get('/analytics/insights')
   },
   conversations: {
     list: () => get('/conversations'),

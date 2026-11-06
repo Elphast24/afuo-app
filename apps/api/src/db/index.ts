@@ -49,12 +49,24 @@ async function createPglite(inMemory: boolean): Promise<Driver> {
   const { migrate } = await import('drizzle-orm/pglite/migrator');
 
   let client: InstanceType<typeof PGlite>;
+  let releaseLock = () => {};
   if (inMemory) {
     client = new PGlite();
   } else {
     const dir = path.resolve(config.database.dataDir, 'pglite');
     fs.mkdirSync(dir, { recursive: true });
-    client = new PGlite(dir);
+    releaseLock = acquireDirLock(path.resolve(config.database.dataDir, 'pglite.lock'), dir);
+    try {
+      client = new PGlite(dir);
+      await client.waitReady;
+    } catch (err) {
+      releaseLock();
+      throw new Error(
+        `The embedded database in ${dir} failed to start (${(err as Error).message}). ` +
+          'This usually means the folder was damaged by a crash or by two servers using it at once. ' +
+          'Stop every API process, move that folder aside (or delete it), and start again; migrations rebuild it and `npm run db:seed` restores the sample data.',
+      );
+    }
   }
   await client.waitReady;
 
@@ -63,8 +75,55 @@ async function createPglite(inMemory: boolean): Promise<Driver> {
     db: db as unknown as DB,
     kind: 'pglite',
     migrate: () => migrate(db, { migrationsFolder }),
-    close: () => client.close(),
+    close: async () => {
+      await client.close();
+      releaseLock();
+    },
   };
+}
+
+/**
+ * PGlite is single-process: two servers (or a server plus `db:seed`) on one folder corrupt it.
+ * A lock file holding the owner's PID makes the second one stop with a clear message instead.
+ * A lock left by a crashed process (PID no longer running) is taken over.
+ */
+function acquireDirLock(lockFile: string, dir: string): () => void {
+  const alive = (pid: number) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (e) {
+      return (e as NodeJS.ErrnoException).code === 'EPERM';
+    }
+  };
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      fs.writeFileSync(lockFile, String(process.pid), { flag: 'wx' });
+      break;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
+      const owner = Number(fs.readFileSync(lockFile, 'utf8').trim());
+      if (owner && owner !== process.pid && alive(owner)) {
+        throw new Error(
+          `Another process (PID ${owner}) is already using the database in ${dir}. ` +
+            `Stop it first (it is probably another "npm run dev" or "npm run db:seed"), then start this one again.`,
+        );
+      }
+      fs.rmSync(lockFile, { force: true }); // stale lock from a crashed process
+      if (attempt === 1) throw e;
+    }
+  }
+
+  const release = () => {
+    try {
+      if (fs.readFileSync(lockFile, 'utf8').trim() === String(process.pid)) fs.rmSync(lockFile, { force: true });
+    } catch {
+      /* already gone */
+    }
+  };
+  process.once('exit', release);
+  return release;
 }
 
 async function createDriver(): Promise<Driver> {

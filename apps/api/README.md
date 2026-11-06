@@ -88,6 +88,8 @@ The in-process store is per instance, so use Upstash if you run more than one se
 
 PGlite is a single-process database: stop the API before `npm run db:seed`, and do not run two API instances on the same `DATA_DIR`.
 Use a Neon `DATABASE_URL` for anything multi-process.
+A lock file (`.data/pglite.lock`, holding the owner's PID) makes a second process stop with "Another process (PID n) is already using the database" instead of corrupting the folder.
+If the API instead dies with `RuntimeError: Aborted()` at start-up, the folder was damaged by an earlier crash or double start: stop all API processes, move `.data` aside, start again and run `npm run db:seed`.
 
 ## Layout
 

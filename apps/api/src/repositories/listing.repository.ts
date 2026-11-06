@@ -17,6 +17,7 @@ export interface ListingFilters {
   maxPrice?: number;
   organic?: boolean;
   status?: ProduceListing['status'];
+  sort?: 'newest' | 'price_asc' | 'price_desc';
   page?: number;
   limit?: number;
 }
@@ -96,6 +97,13 @@ class ListingRepository {
     if (filters.organic) conditions.push(eq(produceListings.isOrganic, true));
 
     const where = and(...conditions);
+    // id breaks ties so pages never repeat or skip rows
+    const order =
+      filters.sort === 'price_asc'
+        ? [asc(produceListings.pricePerUnit), desc(produceListings.createdAt), asc(produceListings.id)]
+        : filters.sort === 'price_desc'
+          ? [desc(produceListings.pricePerUnit), desc(produceListings.createdAt), asc(produceListings.id)]
+          : [desc(produceListings.createdAt), asc(produceListings.id)];
 
     const [rows, totalRows] = await Promise.all([
       db
@@ -103,7 +111,7 @@ class ListingRepository {
         .from(produceListings)
         .innerJoin(users, eq(produceListings.farmerId, users.id))
         .where(where)
-        .orderBy(desc(produceListings.createdAt))
+        .orderBy(...order)
         .limit(limit)
         .offset(offset),
       db.select({ count: sql<number>`count(*)::int` }).from(produceListings).where(where),

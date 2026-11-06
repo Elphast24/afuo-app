@@ -71,6 +71,7 @@ export const listingQuerySchema = z.object({
   maxPrice: z.coerce.number().nonnegative().optional(),
   organic: queryBool.optional(),
   status: status.optional(),
+  sort: z.enum(['newest', 'price_asc', 'price_desc']).default('newest'),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });

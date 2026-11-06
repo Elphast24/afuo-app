@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 100" fill="none">
+  <g transform="translate(10, 5) scale(0.75)">
+    <path d="M60 14 C42 30, 18 58, 22 88 C32 74, 46 52, 60 34Z" fill="#52b788"/>
+    <path d="M60 14 C78 30, 102 58, 98 88 C88 74, 74 52, 60 34Z" fill="#74c69d"/>
+    <line x1="60" y1="34" x2="60" y2="100" stroke="#52b788" stroke-width="4" stroke-linecap="round"/>
+    <line x1="36" y1="64" x2="84" y2="64" stroke="#FCD116" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="60" cy="12" r="6" fill="#FCD116"/>
+  </g>
+
+  <text
+    x="105" y="68"
+    font-family="'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif"
+    font-size="52"
+    font-weight="700"
+    letter-spacing="-1"
+    fill="#d8f3dc"
+  >afuo</text>
+</svg>

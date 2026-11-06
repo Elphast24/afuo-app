@@ -1,18 +1,28 @@
 <script>
   import { onMount, tick } from 'svelte';
-  import { Link, useLocation } from 'svelte-navigator';
-  import { ArrowRight, X, LoaderCircle, Search, Heart } from 'lucide-svelte';
-  import StoreHeader from '../components/marketplace/StoreHeader.svelte';
+  import { Link, useLocation, useNavigate } from 'svelte-navigator';
+  import { ArrowRight, X, LoaderCircle, Search, Heart, Share2, ChevronDown } from 'lucide-svelte';
+  import SiteHeader from '../components/SiteHeader.svelte';
+  import StoreToolbar from '../components/marketplace/StoreToolbar.svelte';
   import ProductCard from '../components/marketplace/ProductCard.svelte';
+  import ListingPanel from '../components/marketplace/ListingPanel.svelte';
   import FilterDialog from '../components/marketplace/FilterDialog.svelte';
+  import ContactDialog from '../components/messages/ContactDialog.svelte';
   import SiteFooter from '../components/SiteFooter.svelte';
   import ErrorState from '../components/ui/ErrorState.svelte';
   import { api } from '../lib/api.js';
   import { session } from '../lib/auth.js';
   import { saved } from '../lib/saved.js';
+  import { showToast } from '../lib/toast.js';
   import { CATEGORY_META, CATEGORY_KEYS, categoryMeta, isRecent } from '../lib/marketplace.js';
 
   const location = useLocation();
+  const navigate = useNavigate();
+  const SORTS = [
+    { value: 'newest', label: 'Newest' },
+    { value: 'price_asc', label: 'Price: low to high' },
+    { value: 'price_desc', label: 'Price: high to low' }
+  ];
   const PAGE_SIZE = 12;
   const EMPTY_FILTERS = { minQuantity: '', maxPrice: '', location: '', organic: false };
 
@@ -21,6 +31,14 @@
   let filters = { ...EMPTY_FILTERS };
   let showSaved = false;
   let filtersOpen = false;
+  let sort = 'newest';
+
+  // The side panel is driven by ?listing=<id>, so it can be shared and the back button closes it
+  let seed = null; // what the clicked card already knows
+  let opener = null; // element to give focus back to
+  let pushed = false; // did we add the history entry (so closing can go back)
+  let contactTarget = null;
+  $: openId = new URLSearchParams($location.search).get('listing');
 
   let status = 'loading';
   let error = '';
@@ -42,6 +60,7 @@
       minQuantity: filters.minQuantity || undefined,
       maxPrice: filters.maxPrice || undefined,
       organic: filters.organic || undefined,
+      sort: sort === 'newest' ? undefined : sort,
       page,
       limit: PAGE_SIZE
     };
@@ -88,6 +107,7 @@
     const params = new URLSearchParams($location.search);
     category = CATEGORY_KEYS.includes(params.get('category')) ? params.get('category') : '';
     query = params.get('q') ?? '';
+    sort = SORTS.some((s) => s.value === params.get('sort')) ? params.get('sort') : 'newest';
     load();
     loadCategoryStats();
   });
@@ -140,6 +160,56 @@
     load();
   }
 
+  function openListing(e) {
+    const { listing, trigger } = e.detail;
+    seed = listing;
+    opener = trigger;
+    pushed = true;
+    const params = new URLSearchParams($location.search);
+    params.set('listing', listing.id);
+    navigate(`/marketplace?${params}`);
+  }
+
+  async function closePanel() {
+    const el = opener;
+    if (pushed) {
+      pushed = false;
+      history.back();
+    } else {
+      const params = new URLSearchParams($location.search);
+      params.delete('listing');
+      navigate(`/marketplace${params.toString() ? `?${params}` : ''}`, { replace: true });
+    }
+    await tick();
+    if (el?.isConnected) el.focus();
+  }
+
+  function contact(e) {
+    const l = e.detail;
+    contactTarget = { id: l.id, produceType: l.produceType, farmerName: l.farmer?.name ?? l.farmerName ?? null };
+  }
+
+  function changeSort() {
+    load();
+  }
+
+  async function shareView() {
+    const params = new URLSearchParams();
+    if (category) params.set('category', category);
+    if (query) params.set('q', query);
+    if (sort !== 'newest') params.set('sort', sort);
+    const url = `${window.location.origin}/marketplace${params.toString() ? `?${params}` : ''}`;
+    try {
+      if (navigator.share) await navigator.share({ title: 'AgriMatch marketplace', url });
+      else {
+        await navigator.clipboard.writeText(url);
+        showToast('Link copied.', 'success');
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') showToast('Could not copy the link.', 'error');
+    }
+  }
+
   function resetAll() {
     query = '';
     category = '';
@@ -175,8 +245,13 @@
 <svelte:head><title>Marketplace · AgriMatch</title></svelte:head>
 
 <div class="store">
-  <StoreHeader bind:query {activeFilters} showingSaved={showSaved} on:search={search} on:filters={() => (filtersOpen = true)} on:saved={toggleSavedView} />
+  <!-- Same dark banner + shared header as every other page; the storefront sits on the rounded sheet below -->
+  <section class="top" aria-label="Search the marketplace">
+    <SiteHeader current="marketplace" />
+    <StoreToolbar bind:query {activeFilters} showingSaved={showSaved} on:search={search} on:filters={() => (filtersOpen = true)} on:saved={toggleSavedView} />
+  </section>
 
+  <div class="sheet">
   <div class="shell">
     <aside class="sidebar" aria-label="Categories">
       <h2 class="display">Categories</h2>
@@ -252,7 +327,21 @@
       <section class="results" bind:this={resultsEl} aria-labelledby="results-title" aria-busy={status === 'loading'}>
         <div class="section-head">
           <h2 id="results-title" class="display">{heading}</h2>
-          <p class="muted total" aria-live="polite">{status === 'ready' || showSaved ? `${total} ${total === 1 ? 'listing' : 'listings'}` : ''}</p>
+        </div>
+        <div class="results-bar">
+          <p class="total" aria-live="polite">{status === 'ready' || showSaved ? `${total.toLocaleString()} ${total === 1 ? 'result' : 'results'}` : ''}</p>
+          <div class="tools">
+            {#if !showSaved}
+              <label class="sort">
+                <span class="sr-only">Sort by</span>
+                <select bind:value={sort} on:change={changeSort}>
+                  {#each SORTS as s}<option value={s.value}>{s.label}</option>{/each}
+                </select>
+                <ChevronDown size={16} aria-hidden="true" />
+              </label>
+            {/if}
+            <button type="button" class="share" aria-label="Share this view" on:click={shareView}><Share2 size={18} aria-hidden="true" /></button>
+          </div>
         </div>
 
         {#if chips.length}
@@ -282,7 +371,7 @@
           </div>
         {:else}
           <div class="grid">
-            {#each shown as listing (listing.id)}<ProductCard {listing} />{/each}
+            {#each shown as listing (listing.id)}<ProductCard {listing} active={listing.id === openId} on:open={openListing} on:contact={contact} />{/each}
           </div>
           {#if !showSaved && pagination.page < pagination.totalPages}
             <div class="more">
@@ -295,15 +384,32 @@
       </section>
     </main>
   </div>
+  </div>
 
   <SiteFooter />
 </div>
 
+{#if openId}
+  <ListingPanel id={openId} seed={seed?.id === openId ? seed : null} on:close={closePanel} on:contact={contact} />
+{/if}
+<ContactDialog open={!!contactTarget} target={contactTarget} on:close={() => (contactTarget = null)} />
 <FilterDialog open={filtersOpen} {filters} on:apply={applyFilters} on:close={() => (filtersOpen = false)} />
 
 <style>
-  .store { min-height: 100dvh; background: #fff; }
+  .store { min-height: 100dvh; background: var(--color-green-900); }
   .display { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.01em; line-height: 1.1; }
+
+  /* Banner: matches PageLayout (photo under a green wash), with the search toolbar instead of a title */
+  .top {
+    position: relative;
+    padding: 9.5rem 0 calc(var(--space-12) + var(--space-6));
+    color: #fff;
+    background: linear-gradient(rgba(15, 42, 31, 0.84), rgba(15, 42, 31, 0.94)), url('/images/hero-farmer.jpg') center 30% / cover no-repeat;
+    background-color: var(--color-green-900);
+  }
+  @media (min-width: 760px) { .top { padding-top: 8rem; } }
+
+  .sheet { position: relative; margin-top: calc(var(--space-6) * -1); padding-top: var(--space-6); border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: #fff; }
 
   .shell { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6); max-width: 1440px; margin: 0 auto; padding: var(--space-2) var(--gutter) var(--space-16); }
   @media (min-width: 1000px) { .shell { grid-template-columns: 190px minmax(0, 1fr); gap: var(--space-8); } }
@@ -323,7 +429,7 @@
   .sidebar button.active { background: var(--color-green-900); color: #fff; font-weight: 600; }
   .count { margin-left: auto; font-size: var(--text-xs); opacity: 0.7; }
   @media (min-width: 1000px) {
-    .sidebar { position: sticky; top: 96px; align-self: start; }
+    .sidebar { position: sticky; top: var(--space-6); align-self: start; }
     .sidebar h2 { margin-top: var(--space-4); }
     .sidebar ul { flex-direction: column; gap: 2px; overflow: visible; }
     .sidebar button { border-radius: var(--radius-sm); background: transparent; padding: 0 var(--space-3); }
@@ -389,13 +495,23 @@
   .cat-name { font-size: var(--text-sm); font-weight: 500; }
 
   /* ─── Results ─── */
-  .total { font-size: var(--text-sm); }
+  .results-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+  .total { font-size: var(--text-lg); font-weight: 600; }
+  .tools { display: flex; align-items: center; gap: var(--space-2); }
+  .sort { position: relative; display: inline-flex; align-items: center; color: var(--color-ink); }
+  .sort select {
+    appearance: none; -webkit-appearance: none; min-height: 48px; padding: 0 var(--space-8) 0 var(--space-4); border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-pill); background: #fff; color: var(--color-ink); font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer;
+  }
+  .sort :global(svg) { position: absolute; right: var(--space-3); pointer-events: none; }
+  .share { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid var(--color-line-strong); border-radius: 50%; background: #fff; color: var(--color-ink); cursor: pointer; }
+  .share:hover { background: var(--tint-gray); }
   .chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-4); padding: 0; list-style: none; }
   .chips .chip { gap: var(--space-2); background: var(--color-green-900); border-color: var(--color-green-900); color: #fff; }
   .link-btn { min-height: 44px; padding: 0 var(--space-2); border: 0; background: transparent; color: var(--color-green-700); font: inherit; font-size: var(--text-sm); font-weight: 600; text-decoration: underline; cursor: pointer; }
 
-  .grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
-  .card-sk { aspect-ratio: 4 / 4.2; border-radius: 28px; }
+  .grid { display: grid; gap: var(--space-6) var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+  .card-sk { aspect-ratio: 4 / 4.4; border-radius: 28px; }
   .more { display: flex; justify-content: center; margin-top: var(--space-6); }
   .empty { display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-12) var(--space-4); border-radius: 28px; background: var(--tint-gray); text-align: center; color: var(--color-muted); }
   .spin { display: inline-flex; animation: spin 1s linear infinite; }

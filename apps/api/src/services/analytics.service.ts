@@ -2,6 +2,7 @@ import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { produceListings, users } from '../db/schema.js';
 import { toListingDto } from '../repositories/listing.repository.js';
+import { buildBalance, buildInsights, buildMatrix, weekChangePct } from './insights.js';
 
 /** Upper bounds (GHS per unit) of the price-distribution buckets */
 const PRICE_BUCKETS = [20, 40, 60, 80] as const;
@@ -93,6 +94,60 @@ class AnalyticsService {
       .orderBy(month);
 
     return { produce, currency: 'GHS', months, history: rows };
+  }
+
+  /**
+   * Everything the Prices dashboard needs beyond the basic tables: listing activity, the produce-by-town
+   * price map, the "priced at or below average" balance, and plain-language insights.
+   * Reads the active listings once and works in memory (fine at this scale; move to SQL if listings reach the tens of thousands).
+   */
+  async getInsights() {
+    const active = await db
+      .select({
+        produceType: produceListings.produceType,
+        unit: produceListings.unit,
+        location: produceListings.location,
+        pricePerUnit: sql<number>`${produceListings.pricePerUnit}::float`,
+        isOrganic: produceListings.isOrganic,
+      })
+      .from(produceListings)
+      .where(eq(produceListings.status, 'ACTIVE'));
+
+    const created = produceListings.createdAt;
+    const [pulseRow] = await db
+      .select({
+        newToday: sql<number>`count(*) filter (where ${created} >= date_trunc('day', now()))::int`,
+        newYesterday: sql<number>`count(*) filter (where ${created} >= date_trunc('day', now()) - interval '1 day' and ${created} < date_trunc('day', now()))::int`,
+        newThisWeek: sql<number>`count(*) filter (where ${created} >= now() - interval '7 days')::int`,
+        newLastWeek: sql<number>`count(*) filter (where ${created} >= now() - interval '14 days' and ${created} < now() - interval '7 days')::int`,
+      })
+      .from(produceListings);
+
+    const monthRows = await db
+      .select({
+        produceType: produceListings.produceType,
+        unit: produceListings.unit,
+        month: sql<'current' | 'previous'>`case when ${created} >= date_trunc('month', now()) then 'current' else 'previous' end`,
+        avgPrice: sql<number>`avg(${produceListings.pricePerUnit})::float`,
+        listings: sql<number>`count(*)::int`,
+      })
+      .from(produceListings)
+      .where(sql`${created} >= date_trunc('month', now()) - interval '1 month'`)
+      .groupBy(
+        produceListings.produceType,
+        produceListings.unit,
+        sql`case when ${created} >= date_trunc('month', now()) then 'current' else 'previous' end`,
+      );
+
+    const pulse = pulseRow;
+    return {
+      currency: 'GHS',
+      generatedAt: new Date().toISOString(),
+      pulse: { ...pulse, weekChangePct: weekChangePct(pulse) },
+      balance: buildBalance(active),
+      matrix: buildMatrix(active),
+      insights: buildInsights(active, monthRows, pulse),
+    };
   }
 
   async getListingsByLocation() {

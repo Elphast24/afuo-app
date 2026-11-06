@@ -87,6 +87,7 @@ analytics.get('/summary', analyticsController.summary);
 analytics.get('/prices', analyticsController.prices);
 analytics.get('/prices/:produce', validate({ params: produceParam, query: priceHistoryQuerySchema }), analyticsController.priceHistory);
 analytics.get('/locations', analyticsController.locations);
+analytics.get('/insights', analyticsController.insights);
 v1.use('/analytics', analytics);
 
 const conversations = Router();
