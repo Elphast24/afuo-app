@@ -22,7 +22,6 @@
     "typescript": "^5.0.0"
   },
   "devDependencies": {
-    "@esbuild/win32-x64": "^0.28.2",
     "@sveltejs/adapter-auto": "^3.0.0",
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
