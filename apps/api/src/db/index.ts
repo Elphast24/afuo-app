@@ -17,7 +17,10 @@ import * as schema from './schema.js';
 
 export type DB = PgDatabase<any, typeof schema>;
 
-const migrationsFolder = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../drizzle');
+// Next to src/ when running from source; in the working directory when bundled for serverless (see serverless/handler.ts)
+const migrationsFolder =
+  [path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../drizzle'), path.resolve(process.cwd(), 'drizzle')].find((p) => fs.existsSync(p)) ??
+  path.resolve(process.cwd(), 'drizzle');
 
 interface Driver {
   db: DB;

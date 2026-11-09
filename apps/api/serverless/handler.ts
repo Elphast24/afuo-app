@@ -1,5 +1,5 @@
 /*
-  Vercel serverless entry. Vercel cannot run src/index.ts (it starts its own long-lived server), so this wraps the same
+  Vercel serverless entry (bundled to api/index.js by npm run build:vercel, so Vercel never compiles the TypeScript). Vercel cannot run src/index.ts (it starts its own long-lived server), so this wraps the same
   Express app as a request handler. Needs DATABASE_URL (Neon) and the UPSTASH_* variables: the embedded database and the
   in-process key-value store do not work across serverless instances.
   Not available here: live chat over Socket.IO (messages still save, clients just do not get pushed updates) and

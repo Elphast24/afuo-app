@@ -15,5 +15,5 @@
     "rootDir": ".",
     "noEmit": true
   },
-  "include": ["src", "api", "tests", "drizzle.config.ts", "vitest.config.ts"]
+  "include": ["src", "serverless", "tests", "drizzle.config.ts", "vitest.config.ts"]
 }

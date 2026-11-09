@@ -5,3 +5,4 @@ dist
 uploads
 .test-uploads
 .data.broken-20261106-1739
+api/index.js
