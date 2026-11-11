@@ -30,7 +30,7 @@ export interface AccessPayload {
 }
 
 class AuthService {
-  async sendOTP(rawPhone: string): Promise<{ phone: string; expiresIn: number; retryAfter: number }> {
+  async sendOTP(rawPhone: string): Promise<{ phone: string; expiresIn: number; retryAfter: number; devCode?: string }> {
     const phone = normalizePhone(rawPhone);
     const { cooldownSeconds, ttlSeconds, maxPerHour } = config.otp;
 
@@ -62,7 +62,8 @@ class AuthService {
     await kv.set(cooldownKey, '1', { ex: cooldownSeconds });
 
     await smsService.sendOTP(phone, code);
-    return { phone, expiresIn: ttlSeconds, retryAfter: cooldownSeconds };
+    // Testing aid (EXPOSE_OTP=true): hand the code back so the web app can show it. Off by default.
+    return { phone, expiresIn: ttlSeconds, retryAfter: cooldownSeconds, ...(config.otp.exposeCode ? { devCode: code } : {}) };
   }
 
   async verifyOTP(rawPhone: string, code: string) {

@@ -35,6 +35,8 @@ var envSchema = z.object({
   ADMIN_USERNAME: z.string().trim().min(3).max(50).default("admin"),
   ADMIN_PASSWORD: optionalString,
   UPLOAD_DIR: z.string().default("./uploads"),
+  /** TESTING ONLY: return the one-time code in the send-OTP response so the web app can show it. Anyone could then sign in as any phone number. */
+  EXPOSE_OTP: z.enum(["true", "false"]).default("false"),
   LOG_LEVEL: z.enum(["error", "warn", "info", "http", "debug"]).default("info")
 });
 var parsed = envSchema.safeParse(process.env);
@@ -102,7 +104,8 @@ var config = {
     cooldownSeconds: 60,
     maxAttempts: 5,
     maxPerHour: 5,
-    lockSeconds: 1800
+    lockSeconds: 1800,
+    exposeCode: env.EXPOSE_OTP === "true"
   }
 };
 
@@ -333,7 +336,13 @@ var reviewsRelations = relations(reviews, ({ one }) => ({
 }));
 
 // src/db/index.ts
-var migrationsFolder = [path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../drizzle"), path.resolve(process.cwd(), "drizzle")].find((p) => fs.existsSync(p)) ?? path.resolve(process.cwd(), "drizzle");
+var migrationsFolder = [
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../drizzle"),
+  // src/db -> apps/api/drizzle
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle"),
+  // api/index.js (serverless bundle) -> apps/api/drizzle
+  path.resolve(process.cwd(), "drizzle")
+].find((p) => fs.existsSync(path.join(p, "meta", "_journal.json"))) ?? path.resolve(process.cwd(), "drizzle");
 async function createNeon(url) {
   const { drizzle } = await import("drizzle-orm/neon-serverless");
   const { migrate } = await import("drizzle-orm/neon-serverless/migrator");
@@ -420,7 +429,7 @@ function acquireDirLock(lockFile, dir) {
 }
 async function createDriver() {
   const url = config.database.url;
-  if (url && url !== "memory://") {
+  if (url && url !== "memory://" && !config.isTest) {
     logger.info("Database: Neon Postgres");
     return createNeon(url);
   }
@@ -678,7 +687,7 @@ var AuthService = class {
     await kv.set(`otp:${phone}`, JSON.stringify(data), { ex: ttlSeconds });
     await kv.set(cooldownKey, "1", { ex: cooldownSeconds });
     await smsService.sendOTP(phone, code);
-    return { phone, expiresIn: ttlSeconds, retryAfter: cooldownSeconds };
+    return { phone, expiresIn: ttlSeconds, retryAfter: cooldownSeconds, ...config.otp.exposeCode ? { devCode: code } : {} };
   }
   async verifyOTP(rawPhone, code) {
     const phone = normalizePhone(rawPhone);

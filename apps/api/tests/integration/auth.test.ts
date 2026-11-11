@@ -48,6 +48,8 @@ describe('POST /auth/otp/send', () => {
       data: { phone: '+233201110001', expiresIn: 300, retryAfter: 60 },
     });
     expect(smsService.lastOtpFor('+233201110001')).toMatch(/^\d{6}$/);
+    // The code is only returned when EXPOSE_OTP=true (testing aid); never by default
+    expect(ok.body.data).not.toHaveProperty('devCode');
 
     const again = await api().post('/v1/auth/otp/send').send({ phone }).expect(429);
     expect(again.body.error.code).toBe('OTP_RATE_LIMITED');

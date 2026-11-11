@@ -19,7 +19,11 @@ export type DB = PgDatabase<any, typeof schema>;
 
 // Next to src/ when running from source; in the working directory when bundled for serverless (see serverless/handler.ts)
 const migrationsFolder =
-  [path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../drizzle'), path.resolve(process.cwd(), 'drizzle')].find((p) => fs.existsSync(p)) ??
+  [
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../drizzle'), // src/db -> apps/api/drizzle
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../drizzle'), // api/index.js (serverless bundle) -> apps/api/drizzle
+    path.resolve(process.cwd(), 'drizzle'),
+  ].find((p) => fs.existsSync(path.join(p, 'meta', '_journal.json'))) ??
   path.resolve(process.cwd(), 'drizzle');
 
 interface Driver {
@@ -131,7 +135,8 @@ function acquireDirLock(lockFile: string, dir: string): () => void {
 
 async function createDriver(): Promise<Driver> {
   const url = config.database.url;
-  if (url && url !== 'memory://') {
+  // Tests always use the in-memory database, whatever DATABASE_URL says
+  if (url && url !== 'memory://' && !config.isTest) {
     logger.info('Database: Neon Postgres');
     return createNeon(url);
   }
