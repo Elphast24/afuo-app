@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 
 /*
-  TESTING AID. When the API runs with EXPOSE_OTP=true it returns the one-time code in the send-OTP response,
-  and we show it in a pop-up (there is no SMS provider yet). Normal API responses have no devCode, so nothing shows.
+  FALLBACK while no SMS provider is connected. The API returns the one-time code in the send-OTP response (devCode)
+  and DevCodePopup shows it on screen with a disclaimer. When SMS is wired in, devCode stops coming and nothing shows.
 */
 export const devCode = writable(null); // { code, phone } | null

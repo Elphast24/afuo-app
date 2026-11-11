@@ -62,8 +62,9 @@ class AuthService {
     await kv.set(cooldownKey, '1', { ex: cooldownSeconds });
 
     await smsService.sendOTP(phone, code);
-    // Testing aid (EXPOSE_OTP=true): hand the code back so the web app can show it. Off by default.
-    return { phone, expiresIn: ttlSeconds, retryAfter: cooldownSeconds, ...(config.otp.exposeCode ? { devCode: code } : {}) };
+    // Fallback while no SMS provider is connected: hand the code back so the web app can show it on screen (see EXPOSE_OTP)
+    const expose = config.otp.exposeCode === 'true' || (config.otp.exposeCode === 'auto' && !smsService.hasProvider);
+    return { phone, expiresIn: ttlSeconds, retryAfter: cooldownSeconds, ...(expose ? { devCode: code } : {}) };
   }
 
   async verifyOTP(rawPhone: string, code: string) {

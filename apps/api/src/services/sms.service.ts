@@ -15,6 +15,9 @@ export interface SentSms {
 }
 
 class SmsService {
+  /** True once a real SMS provider is wired into deliver(). Until then the web app shows the code on screen as a fallback. */
+  readonly hasProvider = false;
+
   readonly outbox: SentSms[] = [];
 
   async sendOTP(phone: string, code: string): Promise<void> {

@@ -35,8 +35,12 @@ var envSchema = z.object({
   ADMIN_USERNAME: z.string().trim().min(3).max(50).default("admin"),
   ADMIN_PASSWORD: optionalString,
   UPLOAD_DIR: z.string().default("./uploads"),
-  /** TESTING ONLY: return the one-time code in the send-OTP response so the web app can show it. Anyone could then sign in as any phone number. */
-  EXPOSE_OTP: z.enum(["true", "false"]).default("false"),
+  /**
+   * Fallback while no SMS provider is connected: return the one-time code in the send-OTP response so the web app can show it
+   * on screen. 'auto' (default) does that only while there is no provider; 'false' never does; 'true' always does.
+   * Anyone who can request a code for a number can then sign in as that number, so connect SMS and rely on 'auto'.
+   */
+  EXPOSE_OTP: z.enum(["auto", "true", "false"]).default("auto"),
   LOG_LEVEL: z.enum(["error", "warn", "info", "http", "debug"]).default("info")
 });
 var parsed = envSchema.safeParse(process.env);
@@ -105,7 +109,7 @@ var config = {
     maxAttempts: 5,
     maxPerHour: 5,
     lockSeconds: 1800,
-    exposeCode: env.EXPOSE_OTP === "true"
+    exposeCode: env.EXPOSE_OTP
   }
 };
 
@@ -533,6 +537,8 @@ var kv = await createStore();
 
 // src/services/sms.service.ts
 var SmsService = class {
+  /** True once a real SMS provider is wired into deliver(). Until then the web app shows the code on screen as a fallback. */
+  hasProvider = false;
   outbox = [];
   async sendOTP(phone, code) {
     await this.deliver(phone, `Your AgriMatch code is ${code}. It expires in 5 minutes.`);
@@ -687,7 +693,8 @@ var AuthService = class {
     await kv.set(`otp:${phone}`, JSON.stringify(data), { ex: ttlSeconds });
     await kv.set(cooldownKey, "1", { ex: cooldownSeconds });
     await smsService.sendOTP(phone, code);
-    return { phone, expiresIn: ttlSeconds, retryAfter: cooldownSeconds, ...config.otp.exposeCode ? { devCode: code } : {} };
+    const expose = config.otp.exposeCode === "true" || config.otp.exposeCode === "auto" && !smsService.hasProvider;
+    return { phone, expiresIn: ttlSeconds, retryAfter: cooldownSeconds, ...expose ? { devCode: code } : {} };
   }
   async verifyOTP(rawPhone, code) {
     const phone = normalizePhone(rawPhone);

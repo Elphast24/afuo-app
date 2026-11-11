@@ -111,7 +111,7 @@
   </p>
 
   {#if isDev}
-    <p class="dev">Dev mode: the code is printed in the API server log.</p>
+    <p class="dev">Dev mode: the code is also printed in the API server log.</p>
   {/if}
 
   <form on:submit|preventDefault={() => submit()} novalidate>

@@ -48,8 +48,8 @@ describe('POST /auth/otp/send', () => {
       data: { phone: '+233201110001', expiresIn: 300, retryAfter: 60 },
     });
     expect(smsService.lastOtpFor('+233201110001')).toMatch(/^\d{6}$/);
-    // The code is only returned when EXPOSE_OTP=true (testing aid); never by default
-    expect(ok.body.data).not.toHaveProperty('devCode');
+    // Fallback while no SMS provider exists: the code is also returned so the web app can show it on screen
+    expect(ok.body.data.devCode).toBe(smsService.lastOtpFor('+233201110001'));
 
     const again = await api().post('/v1/auth/otp/send').send({ phone }).expect(429);
     expect(again.body.error.code).toBe('OTP_RATE_LIMITED');

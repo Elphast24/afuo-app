@@ -29,8 +29,12 @@ const envSchema = z.object({
   ADMIN_PASSWORD: optionalString,
 
   UPLOAD_DIR: z.string().default('./uploads'),
-  /** TESTING ONLY: return the one-time code in the send-OTP response so the web app can show it. Anyone could then sign in as any phone number. */
-  EXPOSE_OTP: z.enum(['true', 'false']).default('false'),
+  /**
+   * Fallback while no SMS provider is connected: return the one-time code in the send-OTP response so the web app can show it
+   * on screen. 'auto' (default) does that only while there is no provider; 'false' never does; 'true' always does.
+   * Anyone who can request a code for a number can then sign in as that number, so connect SMS and rely on 'auto'.
+   */
+  EXPOSE_OTP: z.enum(['auto', 'true', 'false']).default('auto'),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
 });
 
@@ -105,6 +109,6 @@ export const config = {
     maxAttempts: 5,
     maxPerHour: 5,
     lockSeconds: 1800,
-    exposeCode: env.EXPOSE_OTP === 'true',
+    exposeCode: env.EXPOSE_OTP,
   },
 } as const;

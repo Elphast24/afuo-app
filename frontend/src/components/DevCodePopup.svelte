@@ -1,9 +1,10 @@
 <script>
-  import { Copy, X, FlaskConical } from 'lucide-svelte';
+  import { Copy, X, Info } from 'lucide-svelte';
   import { devCode } from '../lib/devcode.js';
   import { showToast } from '../lib/toast.js';
 
-  // TESTING AID: only appears when the API returns a devCode (EXPOSE_OTP=true on the server)
+  // Fallback while no SMS provider is connected: the API returns the code (devCode) and we show it on screen.
+  // Once real SMS is wired in, the API stops sending devCode and this pop-up never appears.
   async function copy() {
     try {
       await navigator.clipboard.writeText($devCode.code);
@@ -15,14 +16,15 @@
 </script>
 
 {#if $devCode}
-  <aside class="dev-popup" role="status" aria-live="polite" aria-label="Test sign-in code">
+  <aside class="dev-popup" role="status" aria-live="polite" aria-label="Your sign-in code">
     <div class="head">
-      <p class="tag"><FlaskConical size={16} aria-hidden="true" /> Test mode</p>
-      <button type="button" class="icon-btn" on:click={() => devCode.set(null)} aria-label="Dismiss the test code"><X size={18} aria-hidden="true" /></button>
+      <p class="tag"><Info size={16} aria-hidden="true" /> Code shown on screen</p>
+      <button type="button" class="icon-btn" on:click={() => devCode.set(null)} aria-label="Dismiss the sign-in code"><X size={18} aria-hidden="true" /></button>
     </div>
-    <p class="why">No SMS is sent yet. Your sign-in code is:</p>
+    <p class="why">Your sign-in code is:</p>
     <p class="code" aria-label="Code {$devCode.code.split('').join(' ')}">{$devCode.code}</p>
     <button type="button" class="btn btn-outline copy" on:click={copy}><Copy size={16} aria-hidden="true" /> Copy code</button>
+    <p class="disclaimer">Disclaimer: we have not yet connected a paid SMS service, so no text message is sent. Until we do, your code is shown here instead. Anyone who can see this screen can see it, so keep it private.</p>
   </aside>
 {/if}
 
@@ -49,6 +51,7 @@
   .why { margin-top: var(--space-2); font-size: var(--text-sm); color: var(--color-muted); }
   .code { margin: var(--space-2) 0 var(--space-3); font-family: var(--font-display); font-size: 2.5rem; letter-spacing: 0.2em; line-height: 1.1; font-variant-numeric: tabular-nums; }
   .copy { width: 100%; min-height: 44px; }
+  .disclaimer { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-amber-200); font-size: var(--text-xs); line-height: 1.5; color: var(--color-muted); }
 
   @keyframes pop {
     from { opacity: 0; transform: translateY(-8px); }
