@@ -2,6 +2,7 @@
   Auth state, backed by the AgriMatch API (phone + OTP, httpOnly cookies).
   `session` is the signed-in user's profile or null; `authReady` flips to true once the first /auth/me check is done.
 */
+import { devCode } from './devcode.js';
 import { writable, get } from 'svelte/store';
 import { api, setUnauthorizedHandler } from './api.js';
 
@@ -43,12 +44,17 @@ export async function initSession() {
   authReady.set(true);
 }
 
-export const sendOtp = (phone) => api.auth.sendOtp(phone);
+export async function sendOtp(phone) {
+  const data = await api.auth.sendOtp(phone);
+  if (data?.devCode) devCode.set({ code: data.devCode, phone });
+  return data;
+}
 
 /** Verify the code; on success the API sets the cookies and we load the full profile */
 export async function verifyOtp(phone, code) {
   const { user: basic } = await api.auth.verifyOtp(phone, code);
   pendingPhone.set(null);
+  devCode.set(null);
   try {
     const { user } = await api.auth.me();
     session.set(user);

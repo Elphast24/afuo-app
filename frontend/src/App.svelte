@@ -23,6 +23,7 @@ import './lib/socket.js';
 import LoginPage from './auth/LoginPage.svelte';
 import VerifyPage from './auth/VerifyPage.svelte';
 import { toasts } from './lib/toast.js';
+import DevCodePopup from './components/DevCodePopup.svelte';
 
 let isOffline = !navigator.onLine;
 
@@ -116,6 +117,8 @@ function getBasePath() {
   <Route path="/farmer"><Redirect to="/listings" /></Route>
   <Route path="/buyer"><Redirect to="/search" /></Route>
 </Router>
+
+<DevCodePopup />
 
 <div class="toast-container" role="status" aria-live="polite">
   {#each $toasts as toast (toast.id)}
